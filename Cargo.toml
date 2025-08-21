@@ -16,7 +16,7 @@ description = """
 [dependencies]
 embedded-hal = "1.0.0"
 bitfield-struct = "0.10.0"
-st-mems-bus = "1.0.0"
+st-mems-bus = "1.0.1"
 derive_more = { version = "2.0.1", default-features = false, features = ["try_from"] }
 st-mem-bank-macro = "1.0.0"
 
