@@ -27,6 +27,8 @@ pub struct Lis2mdl<B, T> {
 pub enum Error<B> {
     Bus(B),          // Error at the bus level
     UnexpectedValue, // Unexpected value read from a register
+    InvalidConfiguration,
+    HwNoResponse
 }
 
 impl<B, T> Lis2mdl<B, T>
@@ -195,6 +197,12 @@ where
     /// is needed.
     pub fn set_rst_sensor_single_set(&mut self, val: u8) -> Result<(), Error<B::Error>> {
         let mut reg = CfgRegB::read(self)?;
+        let rst = SetRst::try_from(reg.set_rst()).map_err(|_| Error::UnexpectedValue)?;
+
+        if val == 1 && rst != SetRst::SensOffCancEveryOdr {
+            return Err(Error::InvalidConfiguration);
+        }
+
         reg.set_off_canc_one_shot(val);
         reg.write(self)?;
 
