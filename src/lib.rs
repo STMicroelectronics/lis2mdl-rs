@@ -4,6 +4,7 @@ pub mod prelude;
 pub mod register;
 
 use core::fmt::Debug;
+use embedded_hal::delay::DelayNs;
 use embedded_hal::i2c::{I2c, SevenBitAddress};
 use embedded_hal::spi::SpiDevice;
 use prelude::*;
@@ -15,9 +16,10 @@ use st_mems_bus::*;
 /// The bus is generalized over the BusOperation trait, allowing the use
 /// of I2C or SPI protocols; this also allows the user to implement sharing
 /// techniques to share the underlying bus.
-pub struct Lis2mdl<B> {
+pub struct Lis2mdl<B, T> {
     /// The bus driver.
     pub bus: B,
+    pub tim: T
 }
 
 /// Driver errors.
@@ -26,39 +28,46 @@ pub enum Error<B> {
     Bus(B),          // Error at the bus level
     UnexpectedValue, // Unexpected value read from a register
 }
-impl<B> Lis2mdl<B>
+
+impl<B, T> Lis2mdl<B, T>
 where
     B: BusOperation,
+    T: DelayNs
 {
     /// Constructor method using a generic Bus that implements BusOperation
-    pub fn new_bus(bus: B) -> Self {
-        Self { bus }
+    pub fn new_bus(bus: B, tim: T) -> Self {
+        Self { bus, tim }
     }
 }
-impl<P> Lis2mdl<i2c::I2cBus<P>>
+impl<P, T> Lis2mdl<i2c::I2cBus<P>, T>
 where
     P: I2c,
+    T: DelayNs
 {
     /// Constructor method for using the I2C bus.
-    pub fn new_i2c(i2c: P, address: I2CAddress) -> Self {
+    pub fn new_i2c(i2c: P, address: I2CAddress, tim: T) -> Self {
         // Initialize the I2C bus with the COMPONENT address
         let bus = i2c::I2cBus::new(i2c, address as SevenBitAddress);
-        Self { bus }
+        Self { bus, tim }
     }
 }
-impl<P> Lis2mdl<spi::SpiBus<P>>
+impl<P, T> Lis2mdl<spi::SpiBus<P>, T>
 where
     P: SpiDevice,
 {
     /// Constructor method for using the SPI bus.
-    pub fn new_spi(spi: P) -> Self {
+   pub fn new_spi(spi: P, tim: T) -> Self {
         // Initialize the SPI bus
         let bus = spi::SpiBus::new(spi);
-        Self { bus }
+        Self { bus, tim }
     }
 }
 
-impl<B: BusOperation> Lis2mdl<B> {
+impl<B, T> Lis2mdl<B, T>
+where
+    B: BusOperation,
+    T: DelayNs
+{
     pub fn write_to_register(&mut self, reg: u8, buf: &[u8]) -> Result<(), Error<B::Error>> {
         self.bus.write_to_register(reg, buf).map_err(Error::Bus)
     }
@@ -251,7 +260,7 @@ impl<B: BusOperation> Lis2mdl<B> {
     ///
     /// Reads the WHO_AM_I register.
     pub fn device_id_get(&mut self) -> Result<u8, Error<B::Error>> {
-        WhoAmI::read(self).map(|who_am_i| who_am_i.0)
+        WhoAmI::read(self).map(|reg| reg.who_am_i())
     }
     /// Set Software reset.
     ///
