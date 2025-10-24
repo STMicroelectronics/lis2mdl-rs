@@ -270,11 +270,50 @@ where
     pub fn device_id_get(&mut self) -> Result<u8, Error<B::Error>> {
         WhoAmI::read(self).map(|reg| reg.who_am_i())
     }
+
+    /// Execute a software reset.
+    ///
+    /// Resets control registers to their default values.
+    /// The software reset procedure takes approximately 5 µs; this function handles the wait internally
+    /// (one reading after 5 us for a maximum of 3 attempts).
+    ///
+    /// Returns `Error::HwNoResponse` if the SOFT_RST bit is not cleared by hardware within 3 ms.
+    pub fn sw_reset(&mut self) -> Result<(), Error<B::Error>> {
+        let mut cfg_reg_a = CfgRegA::default();
+        let mut retry: u8 = 0;
+
+        /* 1. Set the SOFT_RST bit of the CFG_REG_A register to 1. */
+        cfg_reg_a.set_soft_rst(1);
+        cfg_reg_a.write(self)?;
+
+
+        /* 2. Poll the SOFT_RST bit of the CFG_REG_A register until il returns to 0. (should require 5us) */
+        loop {
+            cfg_reg_a = CfgRegA::read(self)?;
+
+            if cfg_reg_a.soft_rst() == 0 {
+                return Ok(());
+            }
+
+            retry += 1;
+            if retry > 3 {
+                break;
+            }
+
+            self.tim.delay_us(5);
+        }
+
+        return Err(Error::HwNoResponse)
+
+    }
+
     /// Set Software reset.
     ///
     /// If val is 1: Restore the default values in user registers.
     /// Flash register keep their values.
+    #[deprecated(since="2.0.0", note = "please use sw_reset")]
     pub fn reset_set(&mut self, val: u8) -> Result<(), Error<B::Error>> {
+
         let mut reg = CfgRegA::read(self)?;
         reg.set_soft_rst(val);
         reg.write(self)?;
@@ -284,14 +323,27 @@ where
     /// Get Software reset configuration.
     ///
     /// If set to 1: Restore the default values in user registers.
+    #[deprecated(since="2.0.0", note = "please use sw_reset")]
     pub fn reset_get(&mut self) -> Result<u8, Error<B::Error>> {
         let val: u8 = CfgRegA::read(self)?.soft_rst();
 
         Ok(val)
     }
+
+    pub fn reboot(&mut self) -> Result<(), Error<B::Error>> {
+        let mut reg = CfgRegA::read(self)?;
+        reg.set_reboot(1);
+        reg.write(self)?;
+
+        self.tim.delay_ms(20);
+
+        Ok(())
+    }
+
     /// Set Reboot memory content.
     ///
     /// If val is 1: Reload the calibration parameters.
+    #[deprecated(since="2.0.0", note = "please use reboot")]
     pub fn boot_set(&mut self, val: u8) -> Result<(), Error<B::Error>> {
         let mut reg = CfgRegA::read(self)?;
         reg.set_reboot(val);
@@ -300,6 +352,7 @@ where
         Ok(())
     }
     /// Reboot memory content. Reload the calibration parameters.
+    #[deprecated(since="2.0.0", note = "please use reboot")]
     pub fn boot_get(&mut self) -> Result<u8, Error<B::Error>> {
         let val: u8 = CfgRegA::read(self)?.reboot();
 
