@@ -59,19 +59,21 @@ use lis2mdl::prelude::*;
 
 ### Create an instance
 
-Create an instance of the driver with the `new_<bus>` associated function, by passing an I2C (`embedded_hal::i2c::I2c`) instance and I2C address, or an SPI (`embedded_hal::spi::SpiDevice`) instance.
+Create a driver instance using the `new_<bus>` associated function by passing:
+- an I2C instance (`embedded_hal::i2c::I2c`) and its I2C address, or an SPI (`embedded_hal::spi::SpiDevice`) instance.
+- a timer implementing `embedded_hal::delay::DelayNs`.
 
 An example with I2C:
 
-```rust
-let mut sensor = Lis2mdl::new_i2c(i2c, I2CAddress::I2cAdd);
+```no run
+let mut sensor = Lis2mdl::new_i2c(i2c, I2CAddress::I2cAdd, delay);
 ```
 
 ### Check "Who Am I" Register
 
 This step ensures correct communication with the sensor. It returns a unique ID to verify the sensor's identity.
 
-```rust
+```no run
 let whoami = sensor.device_id_get().unwrap();
 if whoami != ID {
     panic!("Invalid sensor ID");
@@ -82,7 +84,7 @@ if whoami != ID {
 
 See details in specific examples; the following are common api calls:
 
-```rust
+```no run
 // Restore default configuration
 sensor.reset_set(1).unwrap();
 
