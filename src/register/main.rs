@@ -283,7 +283,7 @@ pub struct StatusReg {
     pub zyxda: u8,
     /// X-axis data overrun (1 bit)
     #[bits(1)]
-    pub xor: u8,
+    pub _xor: u8,
     /// Y-axis data overrun (1 bit)
     #[bits(1)]
     pub yor: u8,
@@ -408,7 +408,7 @@ pub enum Ble {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Default, Debug, TryFrom)]
+#[derive(Clone, Copy, PartialEq, Default, TryFrom)]
 #[try_from(repr)]
 pub enum IntOnDataoff {
     /// Interrupt recognition checks data before hard-iron correction
@@ -419,7 +419,7 @@ pub enum IntOnDataoff {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Default, Debug, TryFrom)]
+#[derive(Clone, Copy, PartialEq, Default, TryFrom)]
 #[try_from(repr)]
 pub enum Sim {
     /// SPI 4-wire interface enabled (disables interrupt and data-ready signaling)
@@ -430,7 +430,7 @@ pub enum Sim {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Default, Debug, TryFrom)]
+#[derive(Clone, Copy, PartialEq, Default, TryFrom)]
 #[try_from(repr)]
 pub enum I2cSwitch {
     /// I2C interface enabled (default)
