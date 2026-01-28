@@ -1,2 +1,4 @@
-pub use crate::register::main::*;
-pub use crate::register::*;
+use super::register;
+
+pub use register::main::*;
+pub use register::*;

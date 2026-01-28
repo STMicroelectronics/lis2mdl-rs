@@ -1,10 +1,12 @@
-use crate::Error;
-use crate::Lis2mdl;
+use super::super::{
+    BusOperation, DelayNs, Error, Lis2mdl, RegisterOperation, SensorOperation, bisync,
+    register::OnState,
+};
+
 use bitfield_struct::bitfield;
 use derive_more::TryFrom;
-use embedded_hal::delay::DelayNs;
+
 use st_mem_bank_macro::{named_register, register};
-use st_mems_bus::BusOperation;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq)]
@@ -39,7 +41,7 @@ pub enum Reg {
 /// Magnetic user offset for hard-iron to compensate environmental
 /// effects.
 /// 1LSB = 1.5mg
-#[named_register(address = Reg::OffsetXRegL, access_type = Lis2mdl, generics = 2)]
+#[named_register(address = Reg::OffsetXRegL, access_type = "Lis2mdl<B, T, OnState>")]
 #[derive(Default, Debug)]
 pub struct OffsetXYZ {
     pub x: i16,
@@ -50,19 +52,19 @@ pub struct OffsetXYZ {
 /// WHO_AM_I (0x4F)
 ///
 /// The identification register is used to identify the device
-#[register(address = Reg::WhoAmI, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::WhoAmI, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct WhoAmI {
     #[bits(8, default = 0b01000000)]
-    pub who_am_i: u8
+    pub who_am_i: u8,
 }
 
 /// CFG_REG_A (0x60)
 ///
 /// Configuration register A (R/W)
 /// Controls output data rate, power mode, reboot, soft reset, and temperature compensation.
-#[register(address = Reg::CfgRegA, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::CfgRegA, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct CfgRegA {
@@ -106,7 +108,7 @@ pub struct CfgRegA {
 ///
 /// Configuration register B (R/W)
 /// Controls offset cancellation, interrupt on data off, set pulse frequency, and low-pass filter.
-#[register(address = Reg::CfgRegB, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::CfgRegB, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct CfgRegB {
@@ -142,7 +144,7 @@ pub struct CfgRegB {
 ///
 /// Configuration register C (R/W)
 /// Controls interrupt pin behavior, interface selection, byte order, SPI mode, self-test, and data-ready pin.
-#[register(address = Reg::CfgRegC, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::CfgRegC, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct CfgRegC {
@@ -180,7 +182,7 @@ pub struct CfgRegC {
 ///
 /// Interrupt control register (R/W)
 /// Enables and configures interrupt recognition.
-#[register(address = Reg::IntCrtlReg, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::IntCrtlReg, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct IntCrtlReg {
@@ -216,7 +218,7 @@ pub struct IntCrtlReg {
 ///
 /// Interrupt source register (R)
 /// Indicates interrupt event status and axis threshold crossing.
-#[register(address = Reg::IntSourceReg, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::IntSourceReg, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct IntSourceReg {
@@ -253,7 +255,7 @@ pub struct IntSourceReg {
 /// This threshold is common to all three (axes) output values and is unsigned unipolar. The threshold value is correlated
 /// to the current gain and it is unsigned because the threshold is considered as an absolute value, but crossing the
 /// threshold is detected for both the positive and negative sides.
-#[register(address = Reg::IntThsLReg, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::IntThsLReg, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct IntThs {
@@ -265,7 +267,7 @@ pub struct IntThs {
 ///
 /// Status register (R)
 /// Indicates data availability and overrun status for each axis.
-#[register(address = Reg::StatusReg, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::StatusReg, access_type = "Lis2mdl<B, T, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct StatusReg {
@@ -300,7 +302,7 @@ pub struct StatusReg {
 /// The output data represents the raw magnetic data only if
 /// relative OFFSET_axis_REG is equal to zero, otherwise hard-iron
 /// calibration is included.
-#[named_register(address = Reg::OutxLReg, access_type = Lis2mdl, generics = 2)]
+#[named_register(address = Reg::OutxLReg, access_type = "Lis2mdl<B, T, OnState>")]
 pub struct OutXYZ {
     pub x: i16,
     pub y: i16,
@@ -310,7 +312,7 @@ pub struct OutXYZ {
 /// TempOut (0x6E - 0x6F)
 ///
 /// Temperature register of the sensor
-#[register(address = Reg::TempOutLReg, access_type = Lis2mdl, generics = 2)]
+#[register(address = Reg::TempOutLReg, access_type = "Lis2mdl<B, T, OnState>")]
 #[derive(Default, Debug)]
 pub struct TempOut(pub i16);
 
